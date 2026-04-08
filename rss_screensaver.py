@@ -288,6 +288,32 @@ class FabricProcessor:
         return output.strip()[:200]
 
 
+def load_historical_events():
+    """Load WWII events for today's date."""
+    events_file = Path(__file__).parent / "data" / "wwii_events.json"
+    if not events_file.exists():
+        return []
+    try:
+        data = json.loads(events_file.read_text())
+        today_key = datetime.now().strftime("%m-%d")
+        entries = data.get(today_key, [])
+        headlines = []
+        for e in entries:
+            headlines.append(Headline(
+                title=e["headline"],
+                source=f"This Day, {e['year']}",
+                description=e["description"],
+                relevance_score=10,
+                relevance_reason="Historical event from this day in WWII",
+            ))
+        if headlines:
+            log.info("loaded %d WWII events for %s", len(headlines), today_key)
+        return headlines
+    except (OSError, json.JSONDecodeError) as e:
+        log.warning("failed to load WWII events: %s", e)
+        return []
+
+
 class FeedManager:
     def __init__(self, feeds, max_headlines=50, refresh_interval=300):
         self.feeds = feeds
@@ -334,9 +360,12 @@ class FeedManager:
         log.info("fetched %d headlines from %d feeds", len(new_headlines), len(self.feeds))
 
         if new_headlines:
+            # Prepend historical events so they appear first
+            historical = load_historical_events()
             random.shuffle(new_headlines)
+            combined = historical + new_headlines
             with self._lock:
-                self.headlines = new_headlines[: self.max_headlines]
+                self.headlines = combined[: self.max_headlines]
                 self._index = 0
             save_cache(self.headlines)
 

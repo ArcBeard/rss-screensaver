@@ -83,10 +83,17 @@ class NewspaperLayout(Gtk.Box):
 
         masthead.append(subtitle_box)
 
-        # Bottom triple rule
+        # Bottom dramatic rules
         masthead.append(self._rule("rule-heavy"))
         masthead.append(self._rule("rule-hairline"))
         masthead.append(self._rule("rule-heavy"))
+
+        # Price/motto art line
+        art_line = Gtk.Label(label="◈  PRICE ONE PENNY  ◈                    ◈  LATEST INTELLIGENCE  ◈")
+        art_line.add_css_class("section-art")
+        art_line.set_halign(Gtk.Align.CENTER)
+        masthead.append(art_line)
+        masthead.append(self._rule("rule-hairline"))
 
         self.append(masthead)
 
@@ -142,16 +149,8 @@ class NewspaperLayout(Gtk.Box):
 
         self.content.append(lead_box)
 
-        # Ornamental divider
-        divider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        divider_box.add_css_class("ornamental-divider")
-        divider_box.set_halign(Gtk.Align.CENTER)
-        divider_box.append(self._rule("rule-ornament-left"))
-        ornament = Gtk.Label(label="✦")
-        ornament.add_css_class("ornament-symbol")
-        divider_box.append(ornament)
-        divider_box.append(self._rule("rule-ornament-right"))
-        self.content.append(divider_box)
+        # Dramatic ornamental divider
+        self.content.append(self._ornamental_break("✦  ✦  ✦"))
 
         # === COLUMN STORIES ===
         remaining = display[1:]
@@ -177,7 +176,7 @@ class NewspaperLayout(Gtk.Box):
         for i, headline in enumerate(remaining):
             col_idx = i % num_cols
             is_top = i < num_cols
-            story = self._build_story(headline, is_secondary=is_top)
+            story = self._build_story(headline, is_secondary=is_top, faded=(i % 3 == 2))
             cols[col_idx].append(story)
 
         for c, col in enumerate(cols):
@@ -189,9 +188,11 @@ class NewspaperLayout(Gtk.Box):
 
         self.content.append(columns_box)
 
-    def _build_story(self, headline, is_secondary=False):
+    def _build_story(self, headline, is_secondary=False, faded=False):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         box.add_css_class("story")
+        if faded:
+            box.add_css_class("story-faded")
 
         clean_title = _strip_emoji(headline.title)
         title = Gtk.Label(label=clean_title.upper() if is_secondary else clean_title)
@@ -228,9 +229,15 @@ class NewspaperLayout(Gtk.Box):
         source.set_xalign(0)
         box.append(source)
 
-        sep = Gtk.Separator()
-        sep.add_css_class("rule-story")
-        box.append(sep)
+        # Decorative story separator
+        sep_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        sep_box.append(self._rule("rule-story"))
+        art = Gtk.Label(label="— ◆ —")
+        art.add_css_class("section-art")
+        art.set_halign(Gtk.Align.CENTER)
+        sep_box.append(art)
+        sep_box.append(self._rule("rule-story"))
+        box.append(sep_box)
 
         return box
 
@@ -239,3 +246,23 @@ class NewspaperLayout(Gtk.Box):
         sep = Gtk.Separator()
         sep.add_css_class(css_class)
         return sep
+
+    @staticmethod
+    def _ornamental_break(symbols="✦  ✦  ✦"):
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        box.add_css_class("ornamental-divider")
+        box.set_halign(Gtk.Align.CENTER)
+
+        left = Gtk.Separator()
+        left.add_css_class("rule-ornament-left")
+        box.append(left)
+
+        ornament = Gtk.Label(label=symbols)
+        ornament.add_css_class("ornament-symbol")
+        box.append(ornament)
+
+        right = Gtk.Separator()
+        right.add_css_class("rule-ornament-right")
+        box.append(right)
+
+        return box
