@@ -139,3 +139,10 @@ class TestInputControllersRegistered:
         code = source.read_text()
         assert "TODO" in code
         assert "re-enable" in code.lower()
+
+    def test_keyboard_mode_set(self):
+        """Layer-shell keyboard mode MUST be set — without it, keys never arrive."""
+        source = Path(__file__).parent.parent / "rss_screensaver.py"
+        code = source.read_text()
+        assert "set_keyboard_mode" in code
+        assert "KeyboardMode" in code
