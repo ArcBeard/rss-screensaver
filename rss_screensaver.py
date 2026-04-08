@@ -9,7 +9,10 @@ import random
 import signal
 import sys
 import threading
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from pathlib import Path
 
 import gi
 
@@ -96,9 +99,54 @@ class FeedManager:
         thread.start()
 
 
+CONFIG_PATH = Path.home() / ".config" / "rss-screensaver" / "config.toml"
+STYLE_PATH = Path.home() / ".config" / "rss-screensaver" / "style.css"
+
+
+def load_config():
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH, "rb") as f:
+            return tomllib.load(f)
+    return {
+        "general": {"refresh_interval": 300, "card_duration": 8, "max_headlines": 50},
+        "feeds": [{"name": "Hacker News", "url": "https://hnrss.org/frontpage"}],
+    }
+
+
+class CardWidget(Gtk.Box):
+    def __init__(self):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.add_css_class("card")
+        self.add_css_class("hidden")
+
+        self.headline_label = Gtk.Label(label="")
+        self.headline_label.add_css_class("headline")
+        self.headline_label.set_wrap(True)
+        self.headline_label.set_max_width_chars(60)
+        self.headline_label.set_justify(Gtk.Justification.CENTER)
+        self.headline_label.set_halign(Gtk.Align.CENTER)
+        self.append(self.headline_label)
+
+        self.source_label = Gtk.Label(label="")
+        self.source_label.add_css_class("source")
+        self.source_label.set_halign(Gtk.Align.CENTER)
+        self.append(self.source_label)
+
+    def show_headline(self, headline):
+        self.headline_label.set_text(headline.title)
+        self.source_label.set_text(headline.source)
+        self.remove_css_class("hidden")
+        self.add_css_class("visible")
+
+    def hide_card(self):
+        self.remove_css_class("visible")
+        self.add_css_class("hidden")
+
+
 class ScreensaverWindow(Gtk.Window):
-    def __init__(self, app, monitor):
+    def __init__(self, app, monitor, feed_manager):
         super().__init__(application=app)
+        self.feed_manager = feed_manager
 
         Gtk4LayerShell.init_for_window(self)
         Gtk4LayerShell.set_layer(self, Gtk4LayerShell.Layer.OVERLAY)
@@ -124,8 +172,48 @@ class ScreensaverWindow(Gtk.Window):
         click_ctrl.connect("pressed", self._on_input)
         self.add_controller(click_ctrl)
 
+        overlay = Gtk.Overlay()
+        self.set_child(overlay)
+
+        self.clock_label = Gtk.Label(label="")
+        self.clock_label.add_css_class("clock")
+        self.clock_label.set_halign(Gtk.Align.END)
+        self.clock_label.set_valign(Gtk.Align.END)
+        self.clock_label.set_margin_end(32)
+        self.clock_label.set_margin_bottom(32)
+        overlay.add_overlay(self.clock_label)
+
+        self.card = CardWidget()
+        self.card.set_halign(Gtk.Align.CENTER)
+        self.card.set_valign(Gtk.Align.CENTER)
+        overlay.add_overlay(self.card)
+
         self._initial_x = None
         self._initial_y = None
+
+    def start_rotation(self, card_duration):
+        self._show_next_card()
+        GLib.timeout_add_seconds(card_duration, self._rotate_card)
+        GLib.timeout_add_seconds(1, self._update_clock)
+
+    def _show_next_card(self):
+        headline = self.feed_manager.next_headline()
+        self.card.hide_card()
+        GLib.timeout_add(900, self._reveal_card, headline)
+
+    def _reveal_card(self, headline):
+        self.card.show_headline(headline)
+        return False
+
+    def _rotate_card(self):
+        self._show_next_card()
+        return True
+
+    def _update_clock(self):
+        time_str = datetime.now().strftime("%H:%M")
+        if self.clock_label.get_text() != time_str:
+            self.clock_label.set_text(time_str)
+        return True
 
     def _on_input(self, *args):
         self.get_application().quit()
@@ -148,14 +236,40 @@ SAFETY_TIMEOUT_SECONDS = 1800  # 30 minutes
 class RSSScreensaverApp(Gtk.Application):
     def __init__(self):
         super().__init__(application_id="org.rss.screensaver")
+        config = load_config()
+        general = config.get("general", {})
+        self.card_duration = general.get("card_duration", 8)
+        self.refresh_interval = general.get("refresh_interval", 300)
+        self.feed_manager = FeedManager(
+            feeds=config.get("feeds", []),
+            max_headlines=general.get("max_headlines", 50),
+            refresh_interval=self.refresh_interval,
+        )
 
     def do_activate(self):
+        if STYLE_PATH.exists():
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_path(str(STYLE_PATH))
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
+
         display = Gdk.Display.get_default()
         monitors = display.get_monitors()
 
         for i in range(monitors.get_n_items()):
-            win = ScreensaverWindow(self, monitors.get_item(i))
+            win = ScreensaverWindow(self, monitors.get_item(i), self.feed_manager)
             win.present()
+            win.start_rotation(self.card_duration)
+
+        self.feed_manager.start_background_fetch()
+        GLib.timeout_add_seconds(self.refresh_interval, self._periodic_fetch)
+
+    def _periodic_fetch(self):
+        self.feed_manager.start_background_fetch()
+        return True
 
         GLib.timeout_add_seconds(SAFETY_TIMEOUT_SECONDS, self._safety_exit)
 
