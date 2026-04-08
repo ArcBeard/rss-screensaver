@@ -8,10 +8,17 @@ layout = "newspaper"
 refresh_interval = 300
 
 # How long each page/card is displayed (seconds)
-card_duration = 8
+# For newspaper: 120s = ~18min full rotation with 9 headlines per page
+card_duration = 120
 
 # Maximum number of headlines to keep in rotation
 max_headlines = 50
+
+[processing]
+# Post-process articles with Fabric for AI summaries
+fabric_enabled = true
+# Fabric pattern to use (summarize_micro gives one-sentence summaries)
+fabric_pattern = "summarize_micro"
 
 [[feeds]]
 name = "Hacker News"

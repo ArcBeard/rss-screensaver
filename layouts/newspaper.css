@@ -96,6 +96,26 @@
     line-height: 1.3;
 }
 
+/* Summaries */
+.lead-summary {
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: #444;
+    font-style: italic;
+    line-height: 1.4;
+    padding: 8px 0;
+}
+
+.story-summary {
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #555;
+    line-height: 1.3;
+    padding: 2px 0;
+}
+
 /* Source attribution */
 .story-source {
     font-family: "Liberation Serif", "Noto Serif", serif;
