@@ -52,7 +52,7 @@ class NewspaperLayout(Gtk.Box):
         masthead.append(self._rule("rule-hairline"))
         masthead.append(self._rule("rule-heavy"))
 
-        self.title_label = Gtk.Label(label="THE  EVENING  GAZETTE")
+        self.title_label = Gtk.Label(label="THE  DAILY  TELEGRAPH")
         self.title_label.add_css_class("masthead-title")
         masthead.append(self.title_label)
 
@@ -69,7 +69,7 @@ class NewspaperLayout(Gtk.Box):
         self.date_label.set_hexpand(True)
         subtitle_box.append(self.date_label)
 
-        motto = Gtk.Label(label="— All the Intelligence, Fitly Printed —")
+        motto = Gtk.Label(label="— Established 1855 —")
         motto.add_css_class("masthead-motto")
         motto.set_halign(Gtk.Align.CENTER)
         motto.set_hexpand(True)
@@ -158,19 +158,10 @@ class NewspaperLayout(Gtk.Box):
         if not remaining:
             return
 
-        # Column count adapts to available width
-        # Layouts receive monitor dimensions via the allocated width after first render
-        # Use headline count as proxy: portrait windows get more headlines (1.8x)
-        # so more headlines = portrait = fewer wider columns
+        # WWII-era newspapers used fewer, wider columns
+        # Portrait (45 headlines) = 1 column, landscape/ultrawide = 2 columns
         n = len(remaining)
-        if n >= 30:  # portrait (45 headlines)
-            num_cols = 2
-        elif n >= 20:  # ultrawide (30 headlines)
-            num_cols = 4
-        elif n >= 8:
-            num_cols = 3
-        else:
-            num_cols = 2
+        num_cols = 1 if n >= 30 else 2
         columns_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         columns_box.add_css_class("columns")
         columns_box.set_hexpand(True)
@@ -223,8 +214,16 @@ class NewspaperLayout(Gtk.Box):
             desc.set_xalign(0)
             box.append(desc)
 
-        source = Gtk.Label(label=f"— {headline.source} —")
+        # Source + relevance score on same line
+        meta_parts = [f"— {headline.source} —"]
+        if headline.relevance_score:
+            meta_parts.append(f"  [{headline.relevance_score}/10]")
+        source = Gtk.Label(label="".join(meta_parts))
         source.add_css_class("story-source")
+        if headline.relevance_score >= 8:
+            source.add_css_class("relevance-high")
+        elif headline.relevance_score >= 5:
+            source.add_css_class("relevance-mid")
         source.set_halign(Gtk.Align.START)
         source.set_xalign(0)
         box.append(source)

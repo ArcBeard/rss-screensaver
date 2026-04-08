@@ -82,14 +82,16 @@ def load_config():
 
 
 class Headline:
-    __slots__ = ("title", "source", "link", "summary", "description")
+    __slots__ = ("title", "source", "link", "summary", "description", "relevance_score", "relevance_reason")
 
-    def __init__(self, title, source, link="", summary="", description=""):
+    def __init__(self, title, source, link="", summary="", description="", relevance_score=0, relevance_reason=""):
         self.title = title
         self.source = source
         self.link = link
         self.summary = summary
         self.description = description
+        self.relevance_score = relevance_score
+        self.relevance_reason = relevance_reason
 
 
 def save_cache(headlines):
@@ -147,17 +149,25 @@ def _get_entry_text(entry):
     return entry.get("title", "")
 
 
-class FabricSummarizer:
-    """Runs Fabric patterns on text to generate summaries."""
+class FabricProcessor:
+    """Runs Fabric patterns on text for summaries and relevance scoring."""
 
-    _OLLAMA_CHECK_TTL = 300  # Cache ollama ps result for 5 minutes
+    _OLLAMA_CHECK_TTL = 300
     _MAX_CACHE_SIZE = 500
 
-    def __init__(self, pattern="summarize_micro", enabled=True, model=None):
-        self.pattern = pattern
+    def __init__(self, summary_pattern="summarize_micro", relevance_pattern="rate_personal_relevance",
+                 summary_enabled=True, relevance_enabled=True, model=None):
+        self.summary_pattern = summary_pattern
+        self.relevance_pattern = relevance_pattern
+        self.summary_enabled = summary_enabled
+        self.relevance_enabled = relevance_enabled
         self.model = model
-        self.enabled = enabled and shutil.which("fabric") is not None
+        has_fabric = shutil.which("fabric") is not None
+        self.summary_enabled = summary_enabled and has_fabric
+        self.relevance_enabled = relevance_enabled and has_fabric
+        self.enabled = self.summary_enabled or self.relevance_enabled
         self._cache = {}
+        self._relevance_cache = {}
         self._ollama_available = None
         self._ollama_checked_at = 0
 
@@ -195,44 +205,69 @@ class FabricSummarizer:
         self._ollama_checked_at = now
         return available
 
+    def _run_fabric(self, pattern, text):
+        """Run a Fabric pattern and return stdout, or None on failure."""
+        try:
+            cmd = ["fabric", "-p", pattern]
+            if self.model:
+                cmd.extend(["-m", self.model])
+            result = subprocess.run(cmd, input=text, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        return None
+
     def summarize(self, headline):
-        if not self.enabled or not headline.description:
+        if not self.summary_enabled or not headline.description:
             return
         cache_key = headline.link or headline.title
         if cache_key in self._cache:
             headline.summary = self._cache[cache_key]
             return
-        try:
-            cmd = ["fabric", "-p", self.pattern]
-            if self.model:
-                cmd.extend(["-m", self.model])
-            result = subprocess.run(
-                cmd,
-                input=headline.description,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                summary = self._extract_summary(result.stdout)
-                headline.summary = summary
-                if len(self._cache) >= self._MAX_CACHE_SIZE:
-                    self._cache.pop(next(iter(self._cache)))
-                self._cache[cache_key] = summary
-        except (subprocess.TimeoutExpired, OSError):
-            pass
+        output = self._run_fabric(self.summary_pattern, headline.description)
+        if output:
+            summary = self._extract_summary(output)
+            headline.summary = summary
+            if len(self._cache) >= self._MAX_CACHE_SIZE:
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[cache_key] = summary
 
-    def summarize_next_page(self, headlines, page_size):
-        """Summarize only the next page_size headlines that lack summaries."""
+    def score_relevance(self, headline):
+        if not self.relevance_enabled:
+            return
+        cache_key = headline.link or headline.title
+        if cache_key in self._relevance_cache:
+            headline.relevance_score, headline.relevance_reason = self._relevance_cache[cache_key]
+            return
+        text = f"Title: {headline.title}\nDescription: {headline.description or headline.summary or ''}"
+        output = self._run_fabric(self.relevance_pattern, text)
+        if output:
+            try:
+                data = json.loads(output)
+                headline.relevance_score = int(data.get("score", 0))
+                headline.relevance_reason = data.get("reason", "")
+                if len(self._relevance_cache) >= self._MAX_CACHE_SIZE:
+                    self._relevance_cache.pop(next(iter(self._relevance_cache)))
+                self._relevance_cache[cache_key] = (headline.relevance_score, headline.relevance_reason)
+                log.debug("relevance: %s → %d (%s)", headline.title[:40], headline.relevance_score, headline.relevance_reason)
+            except (json.JSONDecodeError, ValueError, TypeError):
+                pass
+
+    def process_next_page(self, headlines, page_size):
+        """Summarize and score the next page of headlines."""
         if not self.enabled:
             return
         if not self._is_ollama_available():
-            log.debug("skipping summarization — ollama busy")
+            log.debug("skipping processing — ollama busy")
             return
-        to_process = [h for h in headlines[:page_size] if h.description and not h.summary]
-        log.debug("summarizing %d/%d headlines", len(to_process), page_size)
-        for headline in to_process:
-            self.summarize(headline)
+        to_summarize = [h for h in headlines[:page_size] if h.description and not h.summary] if self.summary_enabled else []
+        to_score = [h for h in headlines[:page_size] if not h.relevance_score] if self.relevance_enabled else []
+        log.debug("processing: %d to summarize, %d to score", len(to_summarize), len(to_score))
+        for h in to_summarize:
+            self.summarize(h)
+        for h in to_score:
+            self.score_relevance(h)
 
     @staticmethod
     def _extract_summary(output):
@@ -338,11 +373,11 @@ class FeedManager:
 
 
 class ScreensaverWindow(Gtk.Window):
-    def __init__(self, app, monitor, feed_manager, layout_cls, summarizer=None):
+    def __init__(self, app, monitor, feed_manager, layout_cls, processor=None):
         super().__init__(application=app)
         self.feed_manager = feed_manager
         self.layout_cls = layout_cls
-        self.summarizer = summarizer
+        self.processor = processor
 
         Gtk4LayerShell.init_for_window(self)
         Gtk4LayerShell.set_layer(self, Gtk4LayerShell.Layer.OVERLAY)
@@ -411,16 +446,25 @@ class ScreensaverWindow(Gtk.Window):
     def start_rotation(self, card_duration):
         GLib.timeout_add_seconds(card_duration, self._rotate)
         GLib.timeout_add_seconds(1, self._update_clock)
+        # Kick off processing for the current page immediately
+        if self.processor:
+            upcoming = self.feed_manager.peek_headlines(self.headlines_per_page)
+            thread = threading.Thread(
+                target=self.processor.process_next_page,
+                args=(upcoming, self.headlines_per_page),
+                daemon=True,
+            )
+            thread.start()
 
     def _rotate(self):
         with timed("rotate"):
             n = self.headlines_per_page
             headlines = self.feed_manager.get_headlines(n)
             self.layout.update(headlines)
-        if self.summarizer:
+        if self.processor:
             upcoming = self.feed_manager.peek_headlines(n)
             thread = threading.Thread(
-                target=self.summarizer.summarize_next_page,
+                target=self.processor.process_next_page,
                 args=(upcoming, n),
                 daemon=True,
             )
@@ -471,9 +515,11 @@ class RSSScreensaverApp(Gtk.Application):
         self.refresh_interval = general.get("refresh_interval", 300)
         self.layout_name = general.get("layout", "newspaper")
 
-        self.summarizer = FabricSummarizer(
-            pattern=processing.get("fabric_pattern", "summarize_micro"),
-            enabled=processing.get("fabric_enabled", True),
+        self.processor = FabricProcessor(
+            summary_pattern=processing.get("fabric_pattern", "summarize_micro"),
+            relevance_pattern=processing.get("relevance_pattern", "rate_personal_relevance"),
+            summary_enabled=processing.get("fabric_enabled", True),
+            relevance_enabled=processing.get("relevance_enabled", True),
             model=processing.get("fabric_model", "qwen3:4b"),
         )
 
@@ -512,7 +558,7 @@ class RSSScreensaverApp(Gtk.Application):
                 with timed(f"window_create[{i}]"):
                     win = ScreensaverWindow(
                         self, monitors.get_item(i), self.feed_manager, layout_cls,
-                        summarizer=self.summarizer,
+                        processor=self.processor,
                     )
                     win.present()
                     win.start_rotation(self.card_duration)
