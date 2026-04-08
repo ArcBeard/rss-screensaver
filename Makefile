@@ -7,6 +7,9 @@ CONFIGDIR = $(HOME)/.config/rss-screensaver
 
 install:
 	install -Dm755 rss_screensaver.py $(LIBDIR)/rss_screensaver.py
+	install -Dm755 rss_screensaver_config.py $(LIBDIR)/rss_screensaver_config.py
+	@printf '#!/bin/bash\ncd $(LIBDIR) && exec python3 rss_screensaver_config.py "$$@"\n' > $(BINDIR)/rss-screensaver-config
+	@chmod 755 $(BINDIR)/rss-screensaver-config
 	install -Dm644 layouts/__init__.py $(LIBDIR)/layouts/__init__.py
 	install -Dm644 layouts/cards.py $(LIBDIR)/layouts/cards.py
 	install -Dm644 layouts/cards.css $(LIBDIR)/layouts/cards.css

@@ -11,8 +11,10 @@ import random
 import signal
 import sys
 import threading
+import time
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -29,6 +31,18 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger("rss-screensaver")
+
+
+@contextmanager
+def timed(label):
+    """Log how long a block takes. Warns if > 1s (main-loop-blocking territory)."""
+    start = time.monotonic()
+    yield
+    elapsed = time.monotonic() - start
+    if elapsed > 1.0:
+        log.warning("SLOW: %s took %.2fs (>1s blocks main loop!)", label, elapsed)
+    else:
+        log.debug("timing: %s took %.3fs", label, elapsed)
 
 # gtk4-layer-shell must be loaded before libwayland
 if "LD_PRELOAD" not in os.environ or "libgtk4-layer-shell" not in os.environ.get("LD_PRELOAD", ""):
@@ -249,10 +263,11 @@ class FeedManager:
             ]
             return
 
-        with ThreadPoolExecutor(max_workers=len(self.feeds)) as pool:
-            results = pool.map(self._fetch_single, self.feeds)
+        with timed("feed_fetch_all"):
+            with ThreadPoolExecutor(max_workers=len(self.feeds)) as pool:
+                results = pool.map(self._fetch_single, self.feeds)
+            new_headlines = [h for batch in results for h in batch]
 
-        new_headlines = [h for batch in results for h in batch]
         log.info("fetched %d headlines from %d feeds", len(new_headlines), len(self.feeds))
 
         if new_headlines:
@@ -302,6 +317,7 @@ class ScreensaverWindow(Gtk.Window):
 
         Gtk4LayerShell.init_for_window(self)
         Gtk4LayerShell.set_layer(self, Gtk4LayerShell.Layer.OVERLAY)
+        Gtk4LayerShell.set_keyboard_mode(self, Gtk4LayerShell.KeyboardMode.ON_DEMAND)
         Gtk4LayerShell.set_monitor(self, monitor)
         Gtk4LayerShell.set_exclusive_zone(self, -1)
         for edge in (
@@ -312,7 +328,7 @@ class ScreensaverWindow(Gtk.Window):
         ):
             Gtk4LayerShell.set_anchor(self, edge, True)
 
-        log.info("window init: monitor=%s, layer=OVERLAY", monitor.get_connector())
+        log.info("window init: monitor=%s, layer=OVERLAY, keyboard=ON_DEMAND", monitor.get_connector())
 
         key_ctrl = Gtk.EventControllerKey()
         key_ctrl.connect("key-pressed", self._on_key)
@@ -354,9 +370,10 @@ class ScreensaverWindow(Gtk.Window):
         GLib.timeout_add_seconds(1, self._update_clock)
 
     def _rotate(self):
-        n = getattr(self.layout_cls, "HEADLINES_PER_PAGE", 1)
-        headlines = self.feed_manager.get_headlines(n)
-        self.layout.update(headlines)
+        with timed("rotate"):
+            n = getattr(self.layout_cls, "HEADLINES_PER_PAGE", 1)
+            headlines = self.feed_manager.get_headlines(n)
+            self.layout.update(headlines)
         if self.summarizer:
             upcoming = self.feed_manager.peek_headlines(n)
             thread = threading.Thread(
@@ -424,34 +441,34 @@ class RSSScreensaverApp(Gtk.Application):
         )
 
     def do_activate(self):
-        display = Gdk.Display.get_default()
+        with timed("do_activate"):
+            display = Gdk.Display.get_default()
 
-        # Load window-level CSS (background, clock)
-        if STYLE_PATH.exists():
-            css_provider = Gtk.CssProvider()
-            css_provider.load_from_path(str(STYLE_PATH))
-            Gtk.StyleContext.add_provider_for_display(
-                display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-            )
+            if STYLE_PATH.exists():
+                css_provider = Gtk.CssProvider()
+                css_provider.load_from_path(str(STYLE_PATH))
+                Gtk.StyleContext.add_provider_for_display(
+                    display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+                )
 
-        # Load layout and its CSS
-        layout_cls = load_layout(self.layout_name)
-        css_path = get_css_path(layout_cls)
-        if css_path.exists():
-            layout_css = Gtk.CssProvider()
-            layout_css.load_from_path(str(css_path))
-            Gtk.StyleContext.add_provider_for_display(
-                display, layout_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-            )
+            layout_cls = load_layout(self.layout_name)
+            css_path = get_css_path(layout_cls)
+            if css_path.exists():
+                layout_css = Gtk.CssProvider()
+                layout_css.load_from_path(str(css_path))
+                Gtk.StyleContext.add_provider_for_display(
+                    display, layout_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+                )
 
-        monitors = display.get_monitors()
-        for i in range(monitors.get_n_items()):
-            win = ScreensaverWindow(
-                self, monitors.get_item(i), self.feed_manager, layout_cls,
-                summarizer=self.summarizer,
-            )
-            win.present()
-            win.start_rotation(self.card_duration)
+            monitors = display.get_monitors()
+            for i in range(monitors.get_n_items()):
+                with timed(f"window_create[{i}]"):
+                    win = ScreensaverWindow(
+                        self, monitors.get_item(i), self.feed_manager, layout_cls,
+                        summarizer=self.summarizer,
+                    )
+                    win.present()
+                    win.start_rotation(self.card_duration)
 
         self.feed_manager.start_background_fetch()
         GLib.timeout_add_seconds(self.refresh_interval, self._periodic_fetch)
