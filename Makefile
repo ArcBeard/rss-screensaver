@@ -15,6 +15,7 @@ install:
 	install -Dm644 layouts/cards.css $(LIBDIR)/layouts/cards.css
 	install -Dm644 layouts/newspaper.py $(LIBDIR)/layouts/newspaper.py
 	install -Dm644 layouts/newspaper.css $(LIBDIR)/layouts/newspaper.css
+	install -Dm644 data/wwii_events.json $(LIBDIR)/data/wwii_events.json
 	install -Dm755 rss-screensaver-launch $(BINDIR)/rss-screensaver-launch
 	@printf '#!/bin/bash\ncd $(LIBDIR) && exec python3 rss_screensaver.py "$$@"\n' > $(BINDIR)/rss-screensaver
 	@chmod 755 $(BINDIR)/rss-screensaver
