@@ -30,7 +30,7 @@ class TestLayoutRegistry:
         assert cls.__name__ == "NewspaperLayout"
         assert hasattr(cls, "CSS_FILE")
         assert hasattr(cls, "update")
-        assert cls.HEADLINES_PER_PAGE == 9
+        assert cls.HEADLINES_PER_PAGE == 25
 
     def test_unknown_layout_raises(self):
         with pytest.raises(ValueError, match="Unknown layout"):

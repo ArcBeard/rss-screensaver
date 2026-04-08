@@ -1,11 +1,11 @@
 /* Window-level styles — shared across all layouts */
 
 window {
-    background-color: rgba(0, 0, 0, 0.92);
+    background-color: #1a1a1a;
 }
 
 .clock {
-    color: rgba(255, 255, 255, 0.2);
-    font-size: 14px;
+    color: rgba(0, 0, 0, 0.15);
+    font-size: 16px;
     font-family: "JetBrainsMono Nerd Font", monospace;
 }

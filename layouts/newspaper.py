@@ -1,5 +1,6 @@
-"""Old-school newspaper front page layout — multi-column grid with masthead."""
+"""Victorian newspaper front page — The Strand Magazine / Times of London (1890s) aesthetic."""
 
+import re
 from datetime import datetime
 
 import gi
@@ -8,51 +9,88 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Gtk
 
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport & map
+    "\U0001F1E0-\U0001F1FF"  # flags
+    "\U00002702-\U000027B0"
+    "\U0000FE00-\U0000FE0F"  # variation selectors
+    "\U0000200D"  # zero width joiner
+    "\U00002600-\U000026FF"  # misc symbols
+    "\U0001F900-\U0001F9FF"  # supplemental symbols
+    "\U0001FA00-\U0001FA6F"  # chess symbols
+    "\U0001FA70-\U0001FAFF"  # symbols extended
+    "\U00002B50"  # star
+    "\U0000203C-\U00003299"  # misc
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _strip_emoji(text):
+    return _EMOJI_RE.sub("", text).strip()
+
 
 class NewspaperLayout(Gtk.Box):
     CSS_FILE = "newspaper.css"
-    HEADLINES_PER_PAGE = 9
+    HEADLINES_PER_PAGE = 25
 
     def __init__(self, headlines):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.add_css_class("newspaper")
+        self.set_hexpand(True)
+        self.set_vexpand(True)
 
-        # Masthead
+        # === MASTHEAD ===
         masthead = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         masthead.add_css_class("masthead")
 
-        rule_top = Gtk.Separator()
-        rule_top.add_css_class("rule-thick")
-        masthead.append(rule_top)
+        # Triple rule: thick-thin-thick
+        masthead.append(self._rule("rule-heavy"))
+        masthead.append(self._rule("rule-hairline"))
+        masthead.append(self._rule("rule-heavy"))
 
-        self.title_label = Gtk.Label(label="THE DAILY WIRE")
+        self.title_label = Gtk.Label(label="THE  EVENING  GAZETTE")
         self.title_label.add_css_class("masthead-title")
         masthead.append(self.title_label)
 
+        # Subtitle row: date — motto — edition
         subtitle_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         subtitle_box.add_css_class("masthead-subtitle-box")
         subtitle_box.set_halign(Gtk.Align.FILL)
 
-        self.date_label = Gtk.Label(label=datetime.now().strftime("%A, %B %d, %Y").upper())
+        self.date_label = Gtk.Label(
+            label=datetime.now().strftime("%A, %B %d, %Y").upper()
+        )
         self.date_label.add_css_class("masthead-date")
         self.date_label.set_halign(Gtk.Align.START)
         self.date_label.set_hexpand(True)
         subtitle_box.append(self.date_label)
 
+        motto = Gtk.Label(label="— All the Intelligence, Fitly Printed —")
+        motto.add_css_class("masthead-motto")
+        motto.set_halign(Gtk.Align.CENTER)
+        motto.set_hexpand(True)
+        subtitle_box.append(motto)
+
         edition_label = Gtk.Label(label="EVENING EDITION")
         edition_label.add_css_class("masthead-edition")
         edition_label.set_halign(Gtk.Align.END)
+        edition_label.set_hexpand(True)
         subtitle_box.append(edition_label)
 
         masthead.append(subtitle_box)
 
-        rule_bottom = Gtk.Separator()
-        rule_bottom.add_css_class("rule-thick")
-        masthead.append(rule_bottom)
+        # Bottom triple rule
+        masthead.append(self._rule("rule-heavy"))
+        masthead.append(self._rule("rule-hairline"))
+        masthead.append(self._rule("rule-heavy"))
 
         self.append(masthead)
 
-        # Content area
+        # === CONTENT ===
         self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.content.add_css_class("content")
         self.content.set_vexpand(True)
@@ -76,63 +114,96 @@ class NewspaperLayout(Gtk.Box):
         if not display:
             return
 
-        # Lead story — full width
+        # === LEAD STORY ===
         lead = display[0]
-        lead_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        lead_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         lead_box.add_css_class("lead-story")
 
-        lead_headline = Gtk.Label(label=lead.title.upper())
+        lead_headline = Gtk.Label(label=_strip_emoji(lead.title).upper())
         lead_headline.add_css_class("lead-headline")
         lead_headline.set_wrap(True)
-        lead_headline.set_max_width_chars(80)
+        lead_headline.set_max_width_chars(70)
         lead_headline.set_halign(Gtk.Align.CENTER)
         lead_box.append(lead_headline)
 
-        if lead.summary:
-            lead_summary = Gtk.Label(label=lead.summary)
-            lead_summary.add_css_class("lead-summary")
-            lead_summary.set_wrap(True)
-            lead_summary.set_max_width_chars(90)
-            lead_summary.set_halign(Gtk.Align.CENTER)
-            lead_box.append(lead_summary)
+        desc_text = _strip_emoji(lead.description or lead.summary or "")
+        if desc_text:
+            lead_desc = Gtk.Label(label=desc_text[:250])
+            lead_desc.add_css_class("lead-description")
+            lead_desc.set_wrap(True)
+            lead_desc.set_max_width_chars(80)
+            lead_desc.set_halign(Gtk.Align.CENTER)
+            lead_box.append(lead_desc)
 
-        lead_source = Gtk.Label(label=lead.source)
+        lead_source = Gtk.Label(label=f"— {lead.source} —")
         lead_source.add_css_class("story-source")
         lead_source.set_halign(Gtk.Align.CENTER)
         lead_box.append(lead_source)
 
         self.content.append(lead_box)
 
-        rule = Gtk.Separator()
-        rule.add_css_class("rule-thin")
-        self.content.append(rule)
+        # Ornamental divider
+        divider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        divider_box.add_css_class("ornamental-divider")
+        divider_box.set_halign(Gtk.Align.CENTER)
+        divider_box.append(self._rule("rule-ornament-left"))
+        ornament = Gtk.Label(label="✦")
+        ornament.add_css_class("ornament-symbol")
+        divider_box.append(ornament)
+        divider_box.append(self._rule("rule-ornament-right"))
+        self.content.append(divider_box)
 
-        # Remaining stories in columns
+        # === COLUMN STORIES ===
         remaining = display[1:]
         if not remaining:
             return
 
-        columns = Gtk.Grid()
-        columns.add_css_class("columns")
-        columns.set_column_homogeneous(True)
-        columns.set_column_spacing(24)
-        columns.set_row_spacing(16)
+        # Column count adapts to available width
+        # Layouts receive monitor dimensions via the allocated width after first render
+        # Use headline count as proxy: portrait windows get more headlines (1.8x)
+        # so more headlines = portrait = fewer wider columns
+        n = len(remaining)
+        if n >= 30:  # portrait (45 headlines)
+            num_cols = 2
+        elif n >= 20:  # ultrawide (30 headlines)
+            num_cols = 4
+        elif n >= 8:
+            num_cols = 3
+        else:
+            num_cols = 2
+        columns_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        columns_box.add_css_class("columns")
+        columns_box.set_hexpand(True)
+        columns_box.set_vexpand(True)
 
-        num_cols = 3 if len(remaining) >= 6 else 2
+        cols = []
+        for c in range(num_cols):
+            col_scroll = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            col_scroll.set_hexpand(True)
+            col_scroll.set_vexpand(True)
+            cols.append(col_scroll)
+
         for i, headline in enumerate(remaining):
-            col = i % num_cols
-            row = i // num_cols
+            col_idx = i % num_cols
+            is_top = i < num_cols
+            story = self._build_story(headline, is_secondary=is_top)
+            cols[col_idx].append(story)
 
-            story = self._build_story(headline, is_secondary=(row == 0))
-            columns.attach(story, col, row, 1, 1)
+        for c, col in enumerate(cols):
+            if c > 0:
+                divider = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+                divider.add_css_class("rule-column")
+                columns_box.append(divider)
+            columns_box.append(col)
 
-        self.content.append(columns)
+        self.content.append(columns_box)
 
     def _build_story(self, headline, is_secondary=False):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         box.add_css_class("story")
 
-        title = Gtk.Label(label=headline.title)
+        clean_title = _strip_emoji(headline.title)
+        title = Gtk.Label(label=clean_title.upper() if is_secondary else clean_title)
         title.add_css_class("secondary-headline" if is_secondary else "story-headline")
         title.set_wrap(True)
         title.set_max_width_chars(40)
@@ -140,23 +211,32 @@ class NewspaperLayout(Gtk.Box):
         title.set_xalign(0)
         box.append(title)
 
-        if headline.summary:
-            summary = Gtk.Label(label=headline.summary)
-            summary.add_css_class("story-summary")
-            summary.set_wrap(True)
-            summary.set_max_width_chars(40)
-            summary.set_halign(Gtk.Align.START)
-            summary.set_xalign(0)
-            box.append(summary)
+        desc_text = _strip_emoji(headline.description or headline.summary or "")
+        if desc_text:
+            # Truncate to ~2 lines worth
+            limit = 160 if is_secondary else 120
+            desc = Gtk.Label(label=desc_text[:limit])
+            desc.add_css_class("story-description")
+            desc.set_wrap(True)
+            desc.set_max_width_chars(40)
+            desc.set_halign(Gtk.Align.START)
+            desc.set_xalign(0)
+            box.append(desc)
 
-        source = Gtk.Label(label=headline.source)
+        source = Gtk.Label(label=f"— {headline.source} —")
         source.add_css_class("story-source")
         source.set_halign(Gtk.Align.START)
         source.set_xalign(0)
         box.append(source)
 
         sep = Gtk.Separator()
-        sep.add_css_class("rule-light")
+        sep.add_css_class("rule-story")
         box.append(sep)
 
         return box
+
+    @staticmethod
+    def _rule(css_class):
+        sep = Gtk.Separator()
+        sep.add_css_class(css_class)
+        return sep

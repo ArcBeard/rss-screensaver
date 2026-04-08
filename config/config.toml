@@ -34,3 +34,31 @@ url = "https://feeds.arstechnica.com/arstechnica/index"
 [[feeds]]
 name = "Lobsters"
 url = "https://lobste.rs/rss"
+
+[[feeds]]
+name = "daily.dev Blog"
+url = "https://daily.dev/blog/rss.xml"
+
+[[feeds]]
+name = "NetworkChuck"
+url = "https://www.youtube.com/feeds/videos.xml?channel_id=UC9x0AN7BWHpCDHSm9NiJFJQ"
+
+[[feeds]]
+name = "ThePrimeagen"
+url = "https://www.youtube.com/feeds/videos.xml?channel_id=UC8ENHE5xdFSwx71u3fDH5Xw"
+
+[[feeds]]
+name = "DEV Community"
+url = "https://dev.to/feed"
+
+[[feeds]]
+name = "InfoQ"
+url = "https://www.infoq.com/feed/"
+
+[[feeds]]
+name = "The New Stack"
+url = "https://thenewstack.io/feed/"
+
+[[feeds]]
+name = "TLDR Tech"
+url = "https://tldr.tech/api/rss/tech"
