@@ -19,6 +19,9 @@ max_headlines = 50
 fabric_enabled = true
 # Fabric pattern to use (summarize_micro gives one-sentence summaries)
 fabric_pattern = "summarize_micro"
+# Model to use for summaries (smaller = less resource usage)
+# Overrides fabric's default model; skips if Ollama has a different model loaded
+fabric_model = "qwen3:4b"
 
 [[feeds]]
 name = "Hacker News"
