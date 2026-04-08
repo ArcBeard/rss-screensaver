@@ -1,48 +1,48 @@
 /*
- * WWII-era London newspaper — The Times / Daily Telegraph (1939-1945)
+ * WWII-era London broadsheet — open newspaper spread
  *
- * Dramatic broadsheet. Bold masthead, heavy rules, urgent headlines,
- * yellowed wartime newsprint. Decorative flourishes between sections.
+ * Two facing pages with centre fold gutter. Each page has its own
+ * lead headline and two columns of sub-stories. Aged newsprint,
+ * ink bleed, tonal variation, dramatic rules.
  */
 
 .newspaper {
-    padding: 32px 64px;
+    padding: 24px 40px;
     background-color: #C4BEB4;
 }
 
 /* ═══════════════════════════════════════════
-   MASTHEAD — LARGE AND COMMANDING
+   MASTHEAD — full width banner
    ═══════════════════════════════════════════ */
 
 .masthead {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+    box-shadow: 0 2px 12px rgba(10, 8, 4, 0.08);
 }
 
 .masthead-title {
     font-family: "Liberation Serif", "Noto Serif", "Times New Roman", serif;
-    font-size: 112px;
+    font-size: 96px;
     font-weight: 700;
     color: #0A0804;
-    letter-spacing: 14px;
-    padding: 6px 0;
+    letter-spacing: 12px;
+    padding: 4px 0;
 }
 
 .masthead-subtitle-box {
-    padding: 4px 0 6px 0;
+    padding: 2px 0 4px 0;
 }
 
 .masthead-date {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 16px;
     color: #3A3020;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
 }
 
 .masthead-motto {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 16px;
-    font-weight: 400;
+    font-size: 14px;
     font-style: italic;
     color: #4A3F30;
     letter-spacing: 2px;
@@ -50,14 +50,13 @@
 
 .masthead-edition {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 16px;
     color: #3A3020;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
 }
 
 /* ═══════════════════════════════════════════
-   RULES & DIVIDERS — BOLD AND DRAMATIC
+   RULES & DIVIDERS
    ═══════════════════════════════════════════ */
 
 .rule-heavy {
@@ -71,117 +70,139 @@
     min-height: 1px;
     background-color: #0A0804;
     color: #0A0804;
-    margin: 3px 0;
+    margin: 2px 0;
 }
 
 .rule-story {
-    min-height: 2px;
-    background-color: #6A5E48;
-    color: #6A5E48;
-    margin: 10px 0 6px 0;
+    min-height: 1px;
+    background-color: #8A7E68;
+    color: #8A7E68;
+    margin: 6px 0 4px 0;
 }
 
 .rule-column {
-    min-width: 2px;
+    min-width: 1px;
     background-color: #3A3020;
     color: #3A3020;
-    margin: 0 20px;
+    margin: 0 12px;
+}
+
+/* Centre fold gutter between pages */
+.gutter {
+    padding: 0 4px;
+}
+
+.rule-gutter {
+    min-width: 3px;
+    background-color: #9A9080;
+    color: #9A9080;
+    margin: 0 8px;
 }
 
 /* Ornamental dividers */
 .ornamental-divider {
-    padding: 10px 0;
+    padding: 6px 0;
 }
 
 .rule-ornament-left {
     min-height: 2px;
-    min-width: 200px;
+    min-width: 100px;
     background-color: #3A3020;
     color: #3A3020;
-    margin: 0 12px 0 0;
+    margin: 0 8px 0 0;
 }
 
 .rule-ornament-right {
     min-height: 2px;
-    min-width: 200px;
+    min-width: 100px;
     background-color: #3A3020;
     color: #3A3020;
-    margin: 0 0 0 12px;
+    margin: 0 0 0 8px;
 }
 
 .ornament-symbol {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 20px;
+    font-size: 16px;
     color: #3A3020;
-    letter-spacing: 8px;
+    letter-spacing: 6px;
     box-shadow: 0 0 3px rgba(10, 8, 4, 0.2);
 }
 
-/* Section breaks between stories */
 .section-art {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 14px;
+    font-size: 12px;
     color: #6A5E48;
-    letter-spacing: 6px;
-    padding: 4px 0;
+    letter-spacing: 4px;
+    padding: 2px 0;
 }
 
 /* ═══════════════════════════════════════════
-   CONTENT
+   SPREAD — two facing pages
    ═══════════════════════════════════════════ */
 
-.content {
-    padding-top: 6px;
+.spread {
+    padding-top: 4px;
+}
+
+.page {
+    padding: 8px 16px;
+}
+
+.page-left {
+    border-right: none;
+}
+
+.page-right {
+    border-left: none;
+}
+
+.page-columns {
+    padding-top: 2px;
+}
+
+.page-number {
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 11px;
+    font-style: italic;
+    color: #8A7E68;
+    padding-top: 8px;
+    letter-spacing: 2px;
 }
 
 /* ═══════════════════════════════════════════
-   LEAD STORY — BIG AND DRAMATIC
+   LEAD — each page has its own lead
    ═══════════════════════════════════════════ */
 
-.lead-story {
-    padding: 14px 24px 10px 24px;
-    box-shadow: 0 0 8px rgba(10, 8, 4, 0.18);
+.page-lead {
+    padding: 8px 4px 6px 4px;
+    box-shadow: 0 0 6px rgba(10, 8, 4, 0.15);
 }
 
 .lead-headline {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 64px;
+    font-size: 48px;
     font-weight: 700;
     color: #0A0804;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     line-height: 1.05;
 }
 
 .lead-description {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 24px;
-    font-weight: 400;
+    font-size: 22px;
     font-style: italic;
     color: #2A2218;
     line-height: 1.3;
-    padding: 10px 0 6px 0;
+    padding: 6px 0 4px 0;
 }
 
 /* ═══════════════════════════════════════════
-   SECONDARY HEADLINES
-   ═══════════════════════════════════════════ */
-
-.secondary-headline {
-    font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 30px;
-    font-weight: 700;
-    color: #0A0804;
-    letter-spacing: 2px;
-    line-height: 1.1;
-}
-
-/* ═══════════════════════════════════════════
-   REGULAR STORY HEADLINES
+   STORY HEADLINES
    ═══════════════════════════════════════════ */
 
 .story-headline {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 25px;
+    font-size: 22px;
     font-weight: 700;
     color: #1A1408;
     line-height: 1.15;
@@ -193,52 +214,40 @@
 
 .story-description {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 21px;
-    font-weight: 400;
+    font-size: 17px;
     color: #2A2218;
-    line-height: 1.25;
-    padding: 4px 0;
+    line-height: 1.2;
+    padding: 2px 0;
 }
 
 /* ═══════════════════════════════════════════
-   SOURCE — dateline style
+   SOURCE
    ═══════════════════════════════════════════ */
 
 .story-source {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 16px;
-    font-weight: 400;
+    font-size: 13px;
     font-style: italic;
     color: #6A5E48;
-    letter-spacing: 2px;
-    padding-top: 2px;
+    letter-spacing: 1px;
+    padding-top: 1px;
 }
 
 /* ═══════════════════════════════════════════
-   COLUMNS
+   STORY CONTAINERS
    ═══════════════════════════════════════════ */
 
-.columns {
-    padding-top: 4px;
-}
-
 .story {
-    padding: 6px 12px;
-    box-shadow: 0 0 4px rgba(10, 8, 4, 0.12);
+    padding: 4px 8px;
+    box-shadow: 0 0 3px rgba(10, 8, 4, 0.1);
 }
 
-/* Tonal variation — simulates uneven ink density across the press run */
 .story-faded {
     opacity: 0.88;
 }
 
-/* Show-through — faint ghost of reverse-side printing */
-.masthead {
-    box-shadow: 0 2px 12px rgba(10, 8, 4, 0.08);
-}
-
 /* ═══════════════════════════════════════════
-   RELEVANCE INDICATORS
+   RELEVANCE
    ═══════════════════════════════════════════ */
 
 .relevance-high {
