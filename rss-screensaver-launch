@@ -1,0 +1,20 @@
+#!/bin/bash
+# Launch RSS screensaver, preventing duplicate instances.
+
+# Exit if already running
+pgrep -f "org.rss.screensaver" && exit 0
+
+# Silently quit Walker if open
+command -v walker &>/dev/null && walker -q 2>/dev/null
+
+# Hide cursor
+hyprctl keyword cursor:invisible true &>/dev/null
+
+# Preload gtk4-layer-shell before libwayland to fix linking order
+export LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so
+
+# Launch screensaver
+rss-screensaver
+
+# Restore cursor on exit
+hyprctl keyword cursor:invisible false &>/dev/null

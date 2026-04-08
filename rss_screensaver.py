@@ -5,11 +5,17 @@ Displays news headlines from RSS feeds as animated cards on a fullscreen
 overlay using GTK4 + gtk4-layer-shell.
 """
 
+import os
 import random
 import signal
 import sys
 import threading
 import tomllib
+
+# gtk4-layer-shell must be loaded before libwayland
+if "LD_PRELOAD" not in os.environ or "libgtk4-layer-shell" not in os.environ.get("LD_PRELOAD", ""):
+    os.environ["LD_PRELOAD"] = "/usr/lib/libgtk4-layer-shell.so"
+    os.execvp(sys.executable, [sys.executable] + sys.argv)
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
