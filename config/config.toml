@@ -15,12 +15,16 @@ card_duration = 120
 max_headlines = 50
 
 [processing]
-# Post-process articles with Fabric for AI summaries
+# AI summary of each article (one-sentence via Fabric)
 fabric_enabled = true
-# Fabric pattern to use (summarize_micro gives one-sentence summaries)
 fabric_pattern = "summarize_micro"
-# Model to use for summaries (smaller = less resource usage)
-# Overrides fabric's default model; skips if Ollama has a different model loaded
+
+# Personal relevance scoring (1-10 based on your interests)
+relevance_enabled = true
+relevance_pattern = "rate_personal_relevance"
+
+# Model for both summary and relevance (smaller = less resource usage)
+# Skips processing if Ollama has a different model loaded
 fabric_model = "qwen3:4b"
 
 [[feeds]]

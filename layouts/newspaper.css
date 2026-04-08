@@ -1,14 +1,14 @@
 /*
- * Victorian Newspaper — The Strand Magazine / Times of London (1890s)
+ * WWII-era London newspaper — The Times / Daily Telegraph (1939-1945)
  *
- * Aesthetic: Aged broadsheet, dense serif typography, thick-thin rules,
- * sepia/parchment tones, narrow columns, ornamental dividers.
- * Think: Sherlock Holmes, gaslit London, hansom cabs.
+ * Aesthetic: Wartime austerity. Dense serif text, thin rules, yellowed
+ * newsprint, restrained headlines (caps, not enormous), high text density.
+ * Two columns max. Urgency conveyed through content, not decoration.
  */
 
 .newspaper {
-    padding: 24px 40px;
-    background-color: #DDD0B8;
+    padding: 32px 64px;
+    background-color: #E0D5B8;
 }
 
 /* ═══════════════════════════════════════════
@@ -16,15 +16,15 @@
    ═══════════════════════════════════════════ */
 
 .masthead {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .masthead-title {
     font-family: "Liberation Serif", "Noto Serif", "Times New Roman", serif;
-    font-size: 64px;
+    font-size: 56px;
     font-weight: 700;
-    color: #1E1308;
-    letter-spacing: 12px;
+    color: #0A0804;
+    letter-spacing: 10px;
     padding: 4px 0;
 }
 
@@ -36,7 +36,7 @@
     font-family: "Liberation Serif", "Noto Serif", serif;
     font-size: 13px;
     font-weight: 400;
-    color: #5A4A38;
+    color: #3A3020;
     letter-spacing: 3px;
 }
 
@@ -45,78 +45,78 @@
     font-size: 12px;
     font-weight: 400;
     font-style: italic;
-    color: #6B5A48;
-    letter-spacing: 2px;
+    color: #4A3F30;
+    letter-spacing: 1px;
 }
 
 .masthead-edition {
     font-family: "Liberation Serif", "Noto Serif", serif;
     font-size: 13px;
     font-weight: 400;
-    color: #5A4A38;
+    color: #3A3020;
     letter-spacing: 3px;
 }
 
 /* ═══════════════════════════════════════════
-   RULES & DIVIDERS
+   RULES & DIVIDERS — thin, austere
    ═══════════════════════════════════════════ */
 
 .rule-heavy {
-    min-height: 3px;
-    background-color: #2A1F14;
-    color: #2A1F14;
+    min-height: 2px;
+    background-color: #0A0804;
+    color: #0A0804;
     margin: 1px 0;
 }
 
 .rule-hairline {
     min-height: 1px;
-    background-color: #2A1F14;
-    color: #2A1F14;
-    margin: 2px 0;
+    background-color: #0A0804;
+    color: #0A0804;
+    margin: 1px 0;
 }
 
 .rule-story {
     min-height: 1px;
-    background-color: #A89880;
-    color: #A89880;
-    margin: 6px 0 3px 0;
+    background-color: #8A7E68;
+    color: #8A7E68;
+    margin: 8px 0 4px 0;
 }
 
 .rule-column {
-    min-width: 2px;
-    background-color: #6B5A48;
-    color: #6B5A48;
-    margin: 0 4px;
+    min-width: 1px;
+    background-color: #3A3020;
+    color: #3A3020;
+    margin: 0 16px;
 }
 
-/* Ornamental divider between lead and columns */
+/* Ornamental divider — minimal for wartime */
 .ornamental-divider {
     padding: 6px 0;
 }
 
 .rule-ornament-left {
     min-height: 1px;
-    min-width: 120px;
-    background-color: #8A7B68;
-    color: #8A7B68;
-    margin: 0 10px 0 0;
+    min-width: 80px;
+    background-color: #6A5E48;
+    color: #6A5E48;
+    margin: 0 8px 0 0;
 }
 
 .rule-ornament-right {
     min-height: 1px;
-    min-width: 120px;
-    background-color: #8A7B68;
-    color: #8A7B68;
-    margin: 0 0 0 10px;
+    min-width: 80px;
+    background-color: #6A5E48;
+    color: #6A5E48;
+    margin: 0 0 0 8px;
 }
 
 .ornament-symbol {
-    font-size: 12px;
-    color: #6B5A48;
+    font-size: 10px;
+    color: #6A5E48;
 }
 
 /* ═══════════════════════════════════════════
-   CONTENT AREA
+   CONTENT
    ═══════════════════════════════════════════ */
 
 .content {
@@ -124,41 +124,41 @@
 }
 
 /* ═══════════════════════════════════════════
-   LEAD STORY
+   LEAD STORY — prominent but restrained
    ═══════════════════════════════════════════ */
 
 .lead-story {
-    padding: 8px 24px 6px 24px;
+    padding: 10px 16px 8px 16px;
 }
 
 .lead-headline {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 700;
-    color: #1E1308;
+    color: #0A0804;
     letter-spacing: 2px;
     line-height: 1.1;
 }
 
 .lead-description {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 400;
     font-style: italic;
-    color: #3A2E20;
+    color: #2A2218;
     line-height: 1.3;
-    padding: 6px 12px 4px 12px;
+    padding: 6px 0 4px 0;
 }
 
 /* ═══════════════════════════════════════════
-   SECONDARY HEADLINES (top row of columns)
+   SECONDARY HEADLINES — all caps, restrained
    ═══════════════════════════════════════════ */
 
 .secondary-headline {
     font-family: "Liberation Serif", "Noto Serif", serif;
     font-size: 20px;
     font-weight: 700;
-    color: #1E1308;
+    color: #0A0804;
     letter-spacing: 1px;
     line-height: 1.15;
 }
@@ -171,25 +171,25 @@
     font-family: "Liberation Serif", "Noto Serif", serif;
     font-size: 17px;
     font-weight: 700;
-    color: #2A1F14;
+    color: #1A1408;
     line-height: 1.2;
 }
 
 /* ═══════════════════════════════════════════
-   DESCRIPTIONS
+   DESCRIPTIONS — dense body text
    ═══════════════════════════════════════════ */
 
 .story-description {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 400;
-    color: #4A3C2E;
+    color: #2A2218;
     line-height: 1.2;
-    padding: 1px 0;
+    padding: 2px 0;
 }
 
 /* ═══════════════════════════════════════════
-   SOURCE ATTRIBUTION
+   SOURCE — dateline style
    ═══════════════════════════════════════════ */
 
 .story-source {
@@ -197,13 +197,13 @@
     font-size: 11px;
     font-weight: 400;
     font-style: italic;
-    color: #8A7560;
-    letter-spacing: 2px;
+    color: #6A5E48;
+    letter-spacing: 1px;
     padding-top: 1px;
 }
 
 /* ═══════════════════════════════════════════
-   COLUMN GRID
+   COLUMNS
    ═══════════════════════════════════════════ */
 
 .columns {
@@ -211,5 +211,18 @@
 }
 
 .story {
-    padding: 3px 8px;
+    padding: 4px 8px;
+}
+
+/* ═══════════════════════════════════════════
+   RELEVANCE INDICATORS
+   ═══════════════════════════════════════════ */
+
+.relevance-high {
+    color: #1A3A0A;
+    font-weight: 700;
+}
+
+.relevance-mid {
+    color: #4A3F30;
 }
