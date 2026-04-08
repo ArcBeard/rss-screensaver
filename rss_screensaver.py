@@ -5,8 +5,11 @@ Displays news headlines from RSS feeds as animated cards on a fullscreen
 overlay using GTK4 + gtk4-layer-shell.
 """
 
+import random
 import signal
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import gi
 
@@ -15,6 +18,82 @@ gi.require_version("Gdk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
 
 from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell
+
+
+class Headline:
+    __slots__ = ("title", "source", "link")
+
+    def __init__(self, title, source, link=""):
+        self.title = title
+        self.source = source
+        self.link = link
+
+
+try:
+    import feedparser as _feedparser
+except ImportError:
+    _feedparser = None
+
+
+class FeedManager:
+    def __init__(self, feeds, max_headlines=50, refresh_interval=300):
+        self.feeds = feeds
+        self.max_headlines = max_headlines
+        self.refresh_interval = refresh_interval
+        self.headlines = []
+        self._index = 0
+        self._lock = threading.Lock()
+
+    def _fetch_single(self, feed_cfg):
+        headlines = []
+        try:
+            feed = _feedparser.parse(feed_cfg["url"])
+            for entry in feed.entries[:20]:
+                title = entry.get("title", "").strip()
+                if title:
+                    headlines.append(
+                        Headline(
+                            title=title,
+                            source=feed_cfg.get("name", feed.feed.get("title", "Unknown")),
+                            link=entry.get("link", ""),
+                        )
+                    )
+        except Exception:
+            pass
+        return headlines
+
+    def fetch_all(self):
+        if _feedparser is None:
+            self.headlines = [
+                Headline(
+                    "Install python-feedparser: sudo pacman -S python-feedparser",
+                    "System",
+                )
+            ]
+            return
+
+        with ThreadPoolExecutor(max_workers=len(self.feeds)) as pool:
+            results = pool.map(self._fetch_single, self.feeds)
+
+        new_headlines = [h for batch in results for h in batch]
+
+        if new_headlines:
+            random.shuffle(new_headlines)
+            with self._lock:
+                self.headlines = new_headlines[: self.max_headlines]
+                self._index = 0
+
+    def next_headline(self):
+        with self._lock:
+            if not self.headlines:
+                return Headline("Loading headlines...", "RSS Screensaver")
+            headline = self.headlines[self._index % len(self.headlines)]
+            self._index += 1
+            return headline
+
+    def start_background_fetch(self):
+        thread = threading.Thread(target=self.fetch_all, daemon=True)
+        thread.start()
 
 
 class ScreensaverWindow(Gtk.Window):
