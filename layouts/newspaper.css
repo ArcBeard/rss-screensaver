@@ -1,135 +1,215 @@
-/* Old-school newspaper front page */
+/*
+ * Victorian Newspaper — The Strand Magazine / Times of London (1890s)
+ *
+ * Aesthetic: Aged broadsheet, dense serif typography, thick-thin rules,
+ * sepia/parchment tones, narrow columns, ornamental dividers.
+ * Think: Sherlock Holmes, gaslit London, hansom cabs.
+ */
 
 .newspaper {
-    padding: 48px 64px;
-    background-color: #f5f0e8;
+    padding: 24px 40px;
+    background-color: #DDD0B8;
 }
 
-/* Masthead */
+/* ═══════════════════════════════════════════
+   MASTHEAD
+   ═══════════════════════════════════════════ */
+
 .masthead {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .masthead-title {
-    font-family: "Old Standard TT", "Liberation Serif", "Noto Serif", "Times New Roman", serif;
-    font-size: 72px;
+    font-family: "Liberation Serif", "Noto Serif", "Times New Roman", serif;
+    font-size: 64px;
     font-weight: 700;
-    color: #1a1a1a;
-    letter-spacing: 4px;
-    padding: 12px 0;
+    color: #1E1308;
+    letter-spacing: 12px;
+    padding: 4px 0;
 }
 
 .masthead-subtitle-box {
-    padding: 4px 0 8px 0;
+    padding: 2px 0 4px 0;
 }
 
 .masthead-date {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 14px;
-    color: #555;
+    font-size: 13px;
+    font-weight: 400;
+    color: #5A4A38;
+    letter-spacing: 3px;
+}
+
+.masthead-motto {
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 12px;
+    font-weight: 400;
+    font-style: italic;
+    color: #6B5A48;
     letter-spacing: 2px;
 }
 
 .masthead-edition {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 14px;
-    color: #555;
-    letter-spacing: 2px;
-    font-style: italic;
+    font-size: 13px;
+    font-weight: 400;
+    color: #5A4A38;
+    letter-spacing: 3px;
 }
 
-/* Rules (dividers) */
-.rule-thick {
+/* ═══════════════════════════════════════════
+   RULES & DIVIDERS
+   ═══════════════════════════════════════════ */
+
+.rule-heavy {
     min-height: 3px;
-    background-color: #1a1a1a;
-    color: #1a1a1a;
+    background-color: #2A1F14;
+    color: #2A1F14;
+    margin: 1px 0;
 }
 
-.rule-thin {
+.rule-hairline {
     min-height: 1px;
-    background-color: #999;
-    color: #999;
-    margin: 12px 0;
+    background-color: #2A1F14;
+    color: #2A1F14;
+    margin: 2px 0;
 }
 
-.rule-light {
+.rule-story {
     min-height: 1px;
-    background-color: #ccc;
-    color: #ccc;
-    margin: 8px 0;
+    background-color: #A89880;
+    color: #A89880;
+    margin: 6px 0 3px 0;
 }
 
-/* Content area */
+.rule-column {
+    min-width: 2px;
+    background-color: #6B5A48;
+    color: #6B5A48;
+    margin: 0 4px;
+}
+
+/* Ornamental divider between lead and columns */
+.ornamental-divider {
+    padding: 6px 0;
+}
+
+.rule-ornament-left {
+    min-height: 1px;
+    min-width: 120px;
+    background-color: #8A7B68;
+    color: #8A7B68;
+    margin: 0 10px 0 0;
+}
+
+.rule-ornament-right {
+    min-height: 1px;
+    min-width: 120px;
+    background-color: #8A7B68;
+    color: #8A7B68;
+    margin: 0 0 0 10px;
+}
+
+.ornament-symbol {
+    font-size: 12px;
+    color: #6B5A48;
+}
+
+/* ═══════════════════════════════════════════
+   CONTENT AREA
+   ═══════════════════════════════════════════ */
+
 .content {
-    padding-top: 16px;
+    padding-top: 4px;
 }
 
-/* Lead story */
+/* ═══════════════════════════════════════════
+   LEAD STORY
+   ═══════════════════════════════════════════ */
+
 .lead-story {
-    padding: 16px 0 20px 0;
+    padding: 8px 24px 6px 24px;
 }
 
 .lead-headline {
-    font-family: "Old Standard TT", "Liberation Serif", "Noto Serif", serif;
-    font-size: 42px;
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 36px;
     font-weight: 700;
-    color: #1a1a1a;
-    letter-spacing: 1px;
+    color: #1E1308;
+    letter-spacing: 2px;
     line-height: 1.1;
 }
 
-/* Secondary headlines (first row of grid) */
-.secondary-headline {
-    font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a1a1a;
-    line-height: 1.2;
-}
-
-/* Regular story headlines */
-.story-headline {
-    font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 17px;
-    font-weight: 600;
-    color: #333;
-    line-height: 1.3;
-}
-
-/* Summaries */
-.lead-summary {
+.lead-description {
     font-family: "Liberation Serif", "Noto Serif", serif;
     font-size: 18px;
     font-weight: 400;
-    color: #444;
     font-style: italic;
-    line-height: 1.4;
-    padding: 8px 0;
+    color: #3A2E20;
+    line-height: 1.3;
+    padding: 6px 12px 4px 12px;
 }
 
-.story-summary {
+/* ═══════════════════════════════════════════
+   SECONDARY HEADLINES (top row of columns)
+   ═══════════════════════════════════════════ */
+
+.secondary-headline {
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1E1308;
+    letter-spacing: 1px;
+    line-height: 1.15;
+}
+
+/* ═══════════════════════════════════════════
+   REGULAR STORY HEADLINES
+   ═══════════════════════════════════════════ */
+
+.story-headline {
+    font-family: "Liberation Serif", "Noto Serif", serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #2A1F14;
+    line-height: 1.2;
+}
+
+/* ═══════════════════════════════════════════
+   DESCRIPTIONS
+   ═══════════════════════════════════════════ */
+
+.story-description {
     font-family: "Liberation Serif", "Noto Serif", serif;
     font-size: 13px;
     font-weight: 400;
-    color: #555;
-    line-height: 1.3;
-    padding: 2px 0;
+    color: #4A3C2E;
+    line-height: 1.2;
+    padding: 1px 0;
 }
 
-/* Source attribution */
+/* ═══════════════════════════════════════════
+   SOURCE ATTRIBUTION
+   ═══════════════════════════════════════════ */
+
 .story-source {
     font-family: "Liberation Serif", "Noto Serif", serif;
-    font-size: 12px;
-    color: #888;
+    font-size: 11px;
+    font-weight: 400;
     font-style: italic;
-    letter-spacing: 1px;
+    color: #8A7560;
+    letter-spacing: 2px;
+    padding-top: 1px;
 }
 
-/* Column grid */
+/* ═══════════════════════════════════════════
+   COLUMN GRID
+   ═══════════════════════════════════════════ */
+
 .columns {
-    padding-top: 8px;
+    padding-top: 2px;
 }
 
 .story {
-    padding: 4px 8px;
+    padding: 3px 8px;
 }

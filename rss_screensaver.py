@@ -18,9 +18,12 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-LOG_DIR = Path.home() / ".local" / "state" / "rss-screensaver"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-LOG_PATH = LOG_DIR / "screensaver.log"
+import json
+
+STATE_DIR = Path.home() / ".local" / "state" / "rss-screensaver"
+STATE_DIR.mkdir(parents=True, exist_ok=True)
+LOG_PATH = STATE_DIR / "screensaver.log"
+CACHE_PATH = STATE_DIR / "headlines.json"
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -87,6 +90,31 @@ class Headline:
         self.link = link
         self.summary = summary
         self.description = description
+
+
+def save_cache(headlines):
+    try:
+        data = [
+            {"title": h.title, "source": h.source, "link": h.link,
+             "summary": h.summary, "description": h.description}
+            for h in headlines
+        ]
+        CACHE_PATH.write_text(json.dumps(data))
+        log.debug("cache saved: %d headlines to %s", len(data), CACHE_PATH)
+    except OSError as e:
+        log.warning("cache save failed: %s", e)
+
+
+def load_cache():
+    try:
+        if CACHE_PATH.exists():
+            data = json.loads(CACHE_PATH.read_text())
+            headlines = [Headline(**d) for d in data]
+            log.info("cache loaded: %d headlines from %s", len(headlines), CACHE_PATH)
+            return headlines
+    except (OSError, json.JSONDecodeError, TypeError) as e:
+        log.warning("cache load failed: %s", e)
+    return []
 
 
 try:
@@ -230,7 +258,7 @@ class FeedManager:
         self.feeds = feeds
         self.max_headlines = max_headlines
         self.refresh_interval = refresh_interval
-        self.headlines = []
+        self.headlines = load_cache()[:max_headlines]
         self._index = 0
         self._lock = threading.Lock()
 
@@ -275,6 +303,7 @@ class FeedManager:
             with self._lock:
                 self.headlines = new_headlines[: self.max_headlines]
                 self._index = 0
+            save_cache(self.headlines)
 
     def next_headline(self):
         with self._lock:
@@ -355,11 +384,25 @@ class ScreensaverWindow(Gtk.Window):
         self.clock_label.set_margin_bottom(32)
         overlay.add_overlay(self.clock_label)
 
-        headlines_per_page = getattr(layout_cls, "HEADLINES_PER_PAGE", 1)
-        headlines = feed_manager.get_headlines(headlines_per_page)
+        # Scale headlines to monitor size — portrait monitors need more
+        base = getattr(layout_cls, "HEADLINES_PER_PAGE", 1)
+        geo = monitor.get_geometry()
+        aspect = geo.width / max(geo.height, 1)
+        if aspect < 0.8:  # portrait
+            self.headlines_per_page = int(base * 1.8)
+        elif aspect > 2.0:  # ultrawide
+            self.headlines_per_page = int(base * 1.2)
+        else:
+            self.headlines_per_page = base
+        log.debug("monitor %s: %dx%d aspect=%.2f headlines=%d",
+                  monitor.get_connector(), geo.width, geo.height, aspect, self.headlines_per_page)
+
+        headlines = feed_manager.get_headlines(self.headlines_per_page)
         self.layout = layout_cls(headlines)
-        self.layout.set_halign(Gtk.Align.CENTER)
-        self.layout.set_valign(Gtk.Align.CENTER)
+        self.layout.set_halign(Gtk.Align.FILL)
+        self.layout.set_valign(Gtk.Align.FILL)
+        self.layout.set_hexpand(True)
+        self.layout.set_vexpand(True)
         overlay.add_overlay(self.layout)
 
         self._initial_x = None
@@ -371,7 +414,7 @@ class ScreensaverWindow(Gtk.Window):
 
     def _rotate(self):
         with timed("rotate"):
-            n = getattr(self.layout_cls, "HEADLINES_PER_PAGE", 1)
+            n = self.headlines_per_page
             headlines = self.feed_manager.get_headlines(n)
             self.layout.update(headlines)
         if self.summarizer:
@@ -460,6 +503,10 @@ class RSSScreensaverApp(Gtk.Application):
                     display, layout_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
                 )
 
+            # First fetch is synchronous so windows have data on first render
+            with timed("initial_fetch"):
+                self.feed_manager.fetch_all()
+
             monitors = display.get_monitors()
             for i in range(monitors.get_n_items()):
                 with timed(f"window_create[{i}]"):
@@ -470,7 +517,6 @@ class RSSScreensaverApp(Gtk.Application):
                     win.present()
                     win.start_rotation(self.card_duration)
 
-        self.feed_manager.start_background_fetch()
         GLib.timeout_add_seconds(self.refresh_interval, self._periodic_fetch)
         GLib.timeout_add_seconds(SAFETY_TIMEOUT_SECONDS, self._safety_exit)
         log.info("started: %d monitors, refresh=%ds, rotate=%ds, safety=%ds",
