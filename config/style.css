@@ -1,41 +1,7 @@
-/* RSS Screensaver GTK4 Styles */
+/* Window-level styles — shared across all layouts */
 
 window {
     background-color: rgba(0, 0, 0, 0.92);
-}
-
-.card {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
-    padding: 40px 48px;
-    margin: 20px;
-    transition: opacity 800ms ease-in-out, margin-top 400ms ease-out;
-    opacity: 0;
-}
-
-.card.visible {
-    opacity: 1;
-    margin-top: 0px;
-}
-
-.card.hidden {
-    opacity: 0;
-    margin-top: 20px;
-}
-
-.headline {
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 36px;
-    font-weight: 600;
-    font-family: "Inter", "Cantarell", sans-serif;
-}
-
-.source {
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 18px;
-    font-weight: 400;
-    font-family: "Inter", "Cantarell", sans-serif;
-    margin-top: 16px;
 }
 
 .clock {

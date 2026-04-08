@@ -1,10 +1,13 @@
 # RSS Screensaver Configuration
 
 [general]
+# Layout theme: "newspaper" or "cards"
+layout = "newspaper"
+
 # How often to fetch new headlines (seconds)
 refresh_interval = 300
 
-# How long each card is displayed (seconds)
+# How long each page/card is displayed (seconds)
 card_duration = 8
 
 # Maximum number of headlines to keep in rotation
