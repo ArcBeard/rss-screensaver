@@ -5,6 +5,7 @@ Displays news headlines from RSS feeds as animated cards on a fullscreen
 overlay using GTK4 + gtk4-layer-shell. Supports swappable layout themes.
 """
 
+import logging
 import os
 import random
 import signal
@@ -14,6 +15,20 @@ import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
+
+LOG_DIR = Path.home() / ".local" / "state" / "rss-screensaver"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_PATH = LOG_DIR / "screensaver.log"
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)-5s [%(name)s] %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_PATH),
+        logging.StreamHandler(sys.stderr),
+    ],
+)
+log = logging.getLogger("rss-screensaver")
 
 # gtk4-layer-shell must be loaded before libwayland
 if "LD_PRELOAD" not in os.environ or "libgtk4-layer-shell" not in os.environ.get("LD_PRELOAD", ""):
@@ -93,10 +108,50 @@ def _get_entry_text(entry):
 class FabricSummarizer:
     """Runs Fabric patterns on text to generate summaries."""
 
-    def __init__(self, pattern="summarize_micro", enabled=True):
+    _OLLAMA_CHECK_TTL = 300  # Cache ollama ps result for 5 minutes
+    _MAX_CACHE_SIZE = 500
+
+    def __init__(self, pattern="summarize_micro", enabled=True, model=None):
         self.pattern = pattern
+        self.model = model
         self.enabled = enabled and shutil.which("fabric") is not None
         self._cache = {}
+        self._ollama_available = None
+        self._ollama_checked_at = 0
+
+    def _is_ollama_available(self):
+        """Check if Ollama is free or already has our model loaded (cached)."""
+        import time
+        now = time.monotonic()
+        if self._ollama_available is not None and (now - self._ollama_checked_at) < self._OLLAMA_CHECK_TTL:
+            log.debug("ollama check cached: available=%s", self._ollama_available)
+            return self._ollama_available
+        try:
+            result = subprocess.run(
+                ["ollama", "ps"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                log.warning("ollama ps returned %d, assuming available", result.returncode)
+                available = True
+            else:
+                lines = result.stdout.strip().splitlines()
+                if len(lines) <= 1:
+                    log.debug("no model loaded in ollama")
+                    available = True
+                else:
+                    loaded_model = lines[1].split()[0]
+                    target = self.model or ""
+                    available = loaded_model == target
+                    log.info("ollama model loaded=%s, target=%s, available=%s", loaded_model, target, available)
+        except (subprocess.TimeoutExpired, OSError, IndexError) as e:
+            log.warning("ollama check failed: %s, assuming available", e)
+            available = True
+        self._ollama_available = available
+        self._ollama_checked_at = now
+        return available
 
     def summarize(self, headline):
         if not self.enabled or not headline.description:
@@ -106,8 +161,11 @@ class FabricSummarizer:
             headline.summary = self._cache[cache_key]
             return
         try:
+            cmd = ["fabric", "-p", self.pattern]
+            if self.model:
+                cmd.extend(["-m", self.model])
             result = subprocess.run(
-                ["fabric", "-p", self.pattern],
+                cmd,
                 input=headline.description,
                 capture_output=True,
                 text=True,
@@ -116,16 +174,23 @@ class FabricSummarizer:
             if result.returncode == 0 and result.stdout.strip():
                 summary = self._extract_summary(result.stdout)
                 headline.summary = summary
+                if len(self._cache) >= self._MAX_CACHE_SIZE:
+                    self._cache.pop(next(iter(self._cache)))
                 self._cache[cache_key] = summary
         except (subprocess.TimeoutExpired, OSError):
             pass
 
-    def summarize_batch(self, headlines):
-        to_process = [h for h in headlines if h.description and not h.summary]
-        if not to_process:
+    def summarize_next_page(self, headlines, page_size):
+        """Summarize only the next page_size headlines that lack summaries."""
+        if not self.enabled:
             return
-        with ThreadPoolExecutor(max_workers=min(4, len(to_process))) as pool:
-            pool.map(self.summarize, to_process)
+        if not self._is_ollama_available():
+            log.debug("skipping summarization — ollama busy")
+            return
+        to_process = [h for h in headlines[:page_size] if h.description and not h.summary]
+        log.debug("summarizing %d/%d headlines", len(to_process), page_size)
+        for headline in to_process:
+            self.summarize(headline)
 
     @staticmethod
     def _extract_summary(output):
@@ -142,16 +207,15 @@ class FabricSummarizer:
         for line in lines:
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
-                return stripped
+                return stripped[:200]
         return output.strip()[:200]
 
 
 class FeedManager:
-    def __init__(self, feeds, max_headlines=50, refresh_interval=300, summarizer=None):
+    def __init__(self, feeds, max_headlines=50, refresh_interval=300):
         self.feeds = feeds
         self.max_headlines = max_headlines
         self.refresh_interval = refresh_interval
-        self.summarizer = summarizer
         self.headlines = []
         self._index = 0
         self._lock = threading.Lock()
@@ -189,10 +253,9 @@ class FeedManager:
             results = pool.map(self._fetch_single, self.feeds)
 
         new_headlines = [h for batch in results for h in batch]
+        log.info("fetched %d headlines from %d feeds", len(new_headlines), len(self.feeds))
 
         if new_headlines:
-            if self.summarizer:
-                self.summarizer.summarize_batch(new_headlines)
             random.shuffle(new_headlines)
             with self._lock:
                 self.headlines = new_headlines[: self.max_headlines]
@@ -217,16 +280,25 @@ class FeedManager:
             self._index = (start + n) % len(self.headlines)
             return result
 
+    def peek_headlines(self, n):
+        """Return the next n headlines without advancing the index."""
+        with self._lock:
+            if not self.headlines:
+                return []
+            start = self._index % len(self.headlines)
+            return [self.headlines[(start + i) % len(self.headlines)] for i in range(n)]
+
     def start_background_fetch(self):
         thread = threading.Thread(target=self.fetch_all, daemon=True)
         thread.start()
 
 
 class ScreensaverWindow(Gtk.Window):
-    def __init__(self, app, monitor, feed_manager, layout_cls):
+    def __init__(self, app, monitor, feed_manager, layout_cls, summarizer=None):
         super().__init__(application=app)
         self.feed_manager = feed_manager
         self.layout_cls = layout_cls
+        self.summarizer = summarizer
 
         Gtk4LayerShell.init_for_window(self)
         Gtk4LayerShell.set_layer(self, Gtk4LayerShell.Layer.OVERLAY)
@@ -240,17 +312,21 @@ class ScreensaverWindow(Gtk.Window):
         ):
             Gtk4LayerShell.set_anchor(self, edge, True)
 
+        log.info("window init: monitor=%s, layer=OVERLAY", monitor.get_connector())
+
         key_ctrl = Gtk.EventControllerKey()
-        key_ctrl.connect("key-pressed", self._on_input)
+        key_ctrl.connect("key-pressed", self._on_key)
         self.add_controller(key_ctrl)
 
-        motion_ctrl = Gtk.EventControllerMotion()
-        motion_ctrl.connect("motion", self._on_mouse_motion)
-        self.add_controller(motion_ctrl)
+        # TODO: re-enable mouse/click exit when used as actual screensaver
+        # motion_ctrl = Gtk.EventControllerMotion()
+        # motion_ctrl.connect("motion", self._on_mouse_motion)
+        # self.add_controller(motion_ctrl)
 
-        click_ctrl = Gtk.GestureClick()
-        click_ctrl.connect("pressed", self._on_input)
-        self.add_controller(click_ctrl)
+        # click_ctrl = Gtk.GestureClick()
+        # click_ctrl.connect("pressed", self._on_input)
+        # self.add_controller(click_ctrl)
+        log.debug("input controllers registered: key (Escape to exit)")
 
         overlay = Gtk.Overlay()
         self.set_child(overlay)
@@ -281,6 +357,14 @@ class ScreensaverWindow(Gtk.Window):
         n = getattr(self.layout_cls, "HEADLINES_PER_PAGE", 1)
         headlines = self.feed_manager.get_headlines(n)
         self.layout.update(headlines)
+        if self.summarizer:
+            upcoming = self.feed_manager.peek_headlines(n)
+            thread = threading.Thread(
+                target=self.summarizer.summarize_next_page,
+                args=(upcoming, n),
+                daemon=True,
+            )
+            thread.start()
         return True
 
     def _update_clock(self):
@@ -289,16 +373,26 @@ class ScreensaverWindow(Gtk.Window):
             self.clock_label.set_text(time_str)
         return True
 
-    def _on_input(self, *args):
-        self.get_application().quit()
+    def _on_key(self, controller, keyval, keycode, state):
+        key_name = Gdk.keyval_name(keyval)
+        if key_name == "Escape":
+            log.info("EXIT: Escape pressed, quitting")
+            self.get_application().quit()
+        else:
+            log.debug("key ignored: %s", key_name)
 
     def _on_mouse_motion(self, controller, x, y):
         if self._initial_x is None:
             self._initial_x = x
             self._initial_y = y
+            log.debug("mouse baseline set: (%.0f, %.0f)", x, y)
             return
-        if abs(x - self._initial_x) > 10 or abs(y - self._initial_y) > 10:
+        dx, dy = abs(x - self._initial_x), abs(y - self._initial_y)
+        if dx > 10 or dy > 10:
+            log.info("EXIT: mouse moved (%.0f, %.0f) from baseline, quitting", dx, dy)
             self.get_application().quit()
+        else:
+            log.debug("mouse jitter (%.0f, %.0f) — below threshold", dx, dy)
 
 
 # Safety timeout: auto-exit after this many seconds to prevent lockouts.
@@ -317,16 +411,16 @@ class RSSScreensaverApp(Gtk.Application):
         self.refresh_interval = general.get("refresh_interval", 300)
         self.layout_name = general.get("layout", "newspaper")
 
-        summarizer = FabricSummarizer(
+        self.summarizer = FabricSummarizer(
             pattern=processing.get("fabric_pattern", "summarize_micro"),
             enabled=processing.get("fabric_enabled", True),
+            model=processing.get("fabric_model", "qwen3:4b"),
         )
 
         self.feed_manager = FeedManager(
             feeds=config.get("feeds", []),
             max_headlines=general.get("max_headlines", 50),
             refresh_interval=self.refresh_interval,
-            summarizer=summarizer,
         )
 
     def do_activate(self):
@@ -353,30 +447,43 @@ class RSSScreensaverApp(Gtk.Application):
         monitors = display.get_monitors()
         for i in range(monitors.get_n_items()):
             win = ScreensaverWindow(
-                self, monitors.get_item(i), self.feed_manager, layout_cls
+                self, monitors.get_item(i), self.feed_manager, layout_cls,
+                summarizer=self.summarizer,
             )
             win.present()
             win.start_rotation(self.card_duration)
 
         self.feed_manager.start_background_fetch()
         GLib.timeout_add_seconds(self.refresh_interval, self._periodic_fetch)
+        GLib.timeout_add_seconds(SAFETY_TIMEOUT_SECONDS, self._safety_exit)
+        log.info("started: %d monitors, refresh=%ds, rotate=%ds, safety=%ds",
+                 monitors.get_n_items(), self.refresh_interval,
+                 self.card_duration, SAFETY_TIMEOUT_SECONDS)
+        log.info("log file: %s", LOG_PATH)
 
     def _periodic_fetch(self):
+        log.debug("periodic feed refresh triggered")
         self.feed_manager.start_background_fetch()
         return True
 
-        GLib.timeout_add_seconds(SAFETY_TIMEOUT_SECONDS, self._safety_exit)
-
     def _safety_exit(self):
+        log.warning("EXIT: safety timeout (%ds) reached — force quitting", SAFETY_TIMEOUT_SECONDS)
         self.quit()
         return False
 
 
 def main():
+    log.info("=== RSS Screensaver starting (PID %d) ===", os.getpid())
     app = RSSScreensaverApp()
-    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, app.quit)
-    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, app.quit)
+
+    def _signal_quit():
+        log.info("EXIT: received SIGINT/SIGTERM")
+        app.quit()
+
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, _signal_quit)
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, _signal_quit)
     app.run(None)
+    log.info("=== RSS Screensaver exited cleanly ===")
 
 
 if __name__ == "__main__":
