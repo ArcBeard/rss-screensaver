@@ -50,12 +50,14 @@ def load_config():
 
 
 class Headline:
-    __slots__ = ("title", "source", "link")
+    __slots__ = ("title", "source", "link", "summary", "description")
 
-    def __init__(self, title, source, link=""):
+    def __init__(self, title, source, link="", summary="", description=""):
         self.title = title
         self.source = source
         self.link = link
+        self.summary = summary
+        self.description = description
 
 
 try:
@@ -63,12 +65,93 @@ try:
 except ImportError:
     _feedparser = None
 
+import html
+import re
+import shutil
+import subprocess
+
+
+def _strip_html(text):
+    """Remove HTML tags and decode entities."""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _get_entry_text(entry):
+    """Extract the best available text content from a feed entry."""
+    for field in ("summary", "description", "content"):
+        val = entry.get(field, "")
+        if isinstance(val, list):
+            val = val[0].get("value", "") if val else ""
+        text = _strip_html(val)
+        if len(text) > 50:
+            return text
+    return entry.get("title", "")
+
+
+class FabricSummarizer:
+    """Runs Fabric patterns on text to generate summaries."""
+
+    def __init__(self, pattern="summarize_micro", enabled=True):
+        self.pattern = pattern
+        self.enabled = enabled and shutil.which("fabric") is not None
+        self._cache = {}
+
+    def summarize(self, headline):
+        if not self.enabled or not headline.description:
+            return
+        cache_key = headline.link or headline.title
+        if cache_key in self._cache:
+            headline.summary = self._cache[cache_key]
+            return
+        try:
+            result = subprocess.run(
+                ["fabric", "-p", self.pattern],
+                input=headline.description,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                summary = self._extract_summary(result.stdout)
+                headline.summary = summary
+                self._cache[cache_key] = summary
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+
+    def summarize_batch(self, headlines):
+        to_process = [h for h in headlines if h.description and not h.summary]
+        if not to_process:
+            return
+        with ThreadPoolExecutor(max_workers=min(4, len(to_process))) as pool:
+            pool.map(self.summarize, to_process)
+
+    @staticmethod
+    def _extract_summary(output):
+        """Pull the one-sentence summary from Fabric output."""
+        lines = output.strip().splitlines()
+        capture = False
+        for line in lines:
+            if "ONE SENTENCE SUMMARY" in line.upper():
+                capture = True
+                continue
+            if capture and line.strip():
+                return line.strip()
+        # Fallback: first non-empty, non-header line
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                return stripped
+        return output.strip()[:200]
+
 
 class FeedManager:
-    def __init__(self, feeds, max_headlines=50, refresh_interval=300):
+    def __init__(self, feeds, max_headlines=50, refresh_interval=300, summarizer=None):
         self.feeds = feeds
         self.max_headlines = max_headlines
         self.refresh_interval = refresh_interval
+        self.summarizer = summarizer
         self.headlines = []
         self._index = 0
         self._lock = threading.Lock()
@@ -85,6 +168,7 @@ class FeedManager:
                             title=title,
                             source=feed_cfg.get("name", feed.feed.get("title", "Unknown")),
                             link=entry.get("link", ""),
+                            description=_get_entry_text(entry),
                         )
                     )
         except Exception:
@@ -107,6 +191,8 @@ class FeedManager:
         new_headlines = [h for batch in results for h in batch]
 
         if new_headlines:
+            if self.summarizer:
+                self.summarizer.summarize_batch(new_headlines)
             random.shuffle(new_headlines)
             with self._lock:
                 self.headlines = new_headlines[: self.max_headlines]
@@ -226,13 +312,21 @@ class RSSScreensaverApp(Gtk.Application):
         super().__init__(application_id="org.rss.screensaver")
         config = load_config()
         general = config.get("general", {})
-        self.card_duration = general.get("card_duration", 8)
+        processing = config.get("processing", {})
+        self.card_duration = general.get("card_duration", 120)
         self.refresh_interval = general.get("refresh_interval", 300)
         self.layout_name = general.get("layout", "newspaper")
+
+        summarizer = FabricSummarizer(
+            pattern=processing.get("fabric_pattern", "summarize_micro"),
+            enabled=processing.get("fabric_enabled", True),
+        )
+
         self.feed_manager = FeedManager(
             feeds=config.get("feeds", []),
             max_headlines=general.get("max_headlines", 50),
             refresh_interval=self.refresh_interval,
+            summarizer=summarizer,
         )
 
     def do_activate(self):

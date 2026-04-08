@@ -88,6 +88,14 @@ class NewspaperLayout(Gtk.Box):
         lead_headline.set_halign(Gtk.Align.CENTER)
         lead_box.append(lead_headline)
 
+        if lead.summary:
+            lead_summary = Gtk.Label(label=lead.summary)
+            lead_summary.add_css_class("lead-summary")
+            lead_summary.set_wrap(True)
+            lead_summary.set_max_width_chars(90)
+            lead_summary.set_halign(Gtk.Align.CENTER)
+            lead_box.append(lead_summary)
+
         lead_source = Gtk.Label(label=lead.source)
         lead_source.add_css_class("story-source")
         lead_source.set_halign(Gtk.Align.CENTER)
@@ -131,6 +139,15 @@ class NewspaperLayout(Gtk.Box):
         title.set_halign(Gtk.Align.START)
         title.set_xalign(0)
         box.append(title)
+
+        if headline.summary:
+            summary = Gtk.Label(label=headline.summary)
+            summary.add_css_class("story-summary")
+            summary.set_wrap(True)
+            summary.set_max_width_chars(40)
+            summary.set_halign(Gtk.Align.START)
+            summary.set_xalign(0)
+            box.append(summary)
 
         source = Gtk.Label(label=headline.source)
         source.add_css_class("story-source")
