@@ -1,0 +1,71 @@
+# Hermes Digital Assistant
+# Requires: Docker Compose v2.x, Ollama running on the host at port 11434
+#
+# First-time setup:
+#   1. cp .env.example .env
+#   2. Fill in WEBUI_SECRET_KEY (see .env.example for generation command)
+#   3. ollama pull hermes3        # or whichever Hermes variant you prefer
+#   4. docker compose up -d
+
+services:
+  hermes-assistant:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: hermes-assistant
+    restart: unless-stopped
+
+    ports:
+      # Bound to localhost only — not exposed to the network.
+      # Change to "0.0.0.0:3000:8080" only if you need LAN/remote access
+      # and have a reverse proxy + TLS in front of it.
+      - "127.0.0.1:3000:8080"
+
+    volumes:
+      - hermes-assistant-data:/app/backend/data
+
+    environment:
+      # ── Ollama backend ────────────────────────────────────────────────────
+      # Points at your host-machine Ollama instance.
+      # "host.docker.internal" resolves to the host via extra_hosts below.
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - ENABLE_OLLAMA_API=true
+
+      # ── External / cloud APIs (all OFF by default) ────────────────────────
+      # Open WebUI routes cloud calls through its OpenAI-compatible layer.
+      # Keeping this false means no outbound calls to OpenAI, Anthropic, or
+      # any other cloud provider unless you explicitly re-enable it here.
+      - ENABLE_OPENAI_API=false
+
+      # ── Default model ─────────────────────────────────────────────────────
+      # Must already be pulled in your Ollama instance.
+      # Override via .env: DEFAULT_MODELS=nous-hermes2:34b
+      - DEFAULT_MODELS=${DEFAULT_MODELS:-hermes3:latest}
+
+      # ── Authentication & security ─────────────────────────────────────────
+      # WEBUI_SECRET_KEY is required — compose will refuse to start without it.
+      # Generate one with: openssl rand -hex 32
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:?Set WEBUI_SECRET_KEY in your .env file (openssl rand -hex 32)}
+
+      # ── Telemetry (all disabled) ──────────────────────────────────────────
+      - SCARF_NO_ANALYTICS=true
+      - DO_NOT_TRACK=true
+      - ANONYMIZED_TELEMETRY=false
+
+    extra_hosts:
+      # Required on Linux for host.docker.internal to resolve correctly.
+      # On Docker Desktop (Mac/Windows) this is automatic.
+      - "host.docker.internal:host-gateway"
+
+    security_opt:
+      # Prevents the container process from gaining new privileges via setuid.
+      - no-new-privileges:true
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  hermes-assistant-data:
+    name: hermes-assistant-data
